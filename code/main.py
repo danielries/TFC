@@ -7,7 +7,7 @@ import argparse
 from utils import _logger, set_requires_grad
 # from models.TC import TC
 from utils import _calc_metrics, copy_Files
-# from model import * # base_Model, base_Model_F, target_classifier
+from model import * # base_Model, base_Model_F, target_classifier
 
 from dataloader import data_generator
 from trainer import Trainer, model_finetune, model_test #model_evaluate
@@ -27,7 +27,7 @@ parser.add_argument('--run_description', default='run1', type=str,
 parser.add_argument('--seed', default=0, type=int, help='seed value')
 
 # 1. self_supervised; 2. finetune (itself contains finetune and test)
-parser.add_argument('--training_mode', default='fine_tune_test', type=str,
+parser.add_argument('--training_mode', default='pre_train', type=str,
                     help='pre_train, fine_tune_test')
 
 parser.add_argument('--pretrain_dataset', default='SleepEEG', type=str,
@@ -95,7 +95,7 @@ logger.debug("=" * 45)
 sourcedata_path = f"../datasets/{sourcedata}"  # './data/Epilepsy'
 targetdata_path = f"../datasets/{targetdata}"
 # for self-supervised, the data are augmented here. Only self-supervised learning need augmentation
-subset = True # if subset= true, use a subset for debugging.
+#subset = True # if subset= true, use a subset for debugging.
 train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset)
 logger.debug("Data loaded ...")
 
@@ -109,17 +109,17 @@ classifier = target_classifier(configs).to(device)
 temporal_contr_model = None #TC(configs, device).to(device)
 
 
-# if training_mode == "fine_tune_test":
-#     # load saved model of this experiment
-#     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description,
-#     f"pre_train_seed_{SEED}", "saved_models")) # 'experiments_logs/Exp1/run1/self_supervised_seed_0/saved_models'
-#     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device) # two saved models: ['model_state_dict', 'temporal_contr_model_state_dict']
-#
-#     pretrained_dict = chkpoint["model_state_dict"] # Time domain parameters
-#     model_dict = TFC_model.state_dict()
-#     # pretrained_dict = remove_logits(pretrained_dict)
-#     model_dict.update(pretrained_dict)
-#     TFC_model.load_state_dict(model_dict)
+if training_mode == "fine_tune_test":
+    # load saved model of this experiment
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description,
+    f"pre_train_seed_{SEED}", "saved_models")) # 'experiments_logs/Exp1/run1/self_supervised_seed_0/saved_models'
+    chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device) # two saved models: ['model_state_dict', 'temporal_contr_model_state_dict']
+
+    pretrained_dict = chkpoint["model_state_dict"] # Time domain parameters
+    model_dict = TFC_model.state_dict()
+    # pretrained_dict = remove_logits(pretrained_dict)
+    model_dict.update(pretrained_dict)
+    TFC_model.load_state_dict(model_dict)
 
 
 model_optimizer = torch.optim.Adam(TFC_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
