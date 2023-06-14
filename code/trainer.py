@@ -38,7 +38,6 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
             """Train. In fine-tuning, this part is also trained???"""
             train_loss, train_acc, train_auc = model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optimizer, criterion,
                                                               train_dl, config, device, training_mode, model_F=model_F, model_F_optimizer=model_F_optimizer)
-
             pretrain_loss.append(train_loss.item())
             if training_mode != 'self_supervised':  # use scheduler in all other modes.
                 scheduler.step(train_loss)
@@ -50,17 +49,13 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
         chkpoint = {'model_state_dict': model.state_dict(),}
         torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
         print('Pretrained model is stored at folder:{}'.format(experiment_log_dir+'saved_models'+'ckp_last.pt'))
-        logger.debug("loss=%s",pretrain_loss)
+        logger.debug('Pretrain loss = %s', pretrain_loss)
 
     """Fine-tuning and Test"""
     if training_mode != 'pre_train':  # no need to run the evaluation for self-supervised mode.
         """fine-tune"""
         print('Fine-tune  on Fine-tuning set')
         performance_list = []
-        finetune_acc = []
-        finetune_loss = []
-        test_acc_list = []
-        test_loss_list = []
         total_f1 = []
         for epoch in range(1, config.num_epoch + 1):
             valid_loss, valid_acc, valid_auc, valid_prc, emb_finetune, label_finetune, F1 = model_finetune(model, temporal_contr_model, valid_dl, config, device, training_mode,
@@ -94,23 +89,10 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
                                                              classifier=classifier, classifier_optimizer=classifier_optimizer)
 
             performance_list.append(performance)
-            finetune_acc.append(valid_acc.item())
-            finetune_loss.append(valid_loss.item())
-            test_acc_list.append(test_acc.item())
-            test_loss_list.append(test_loss.item())
         performance_array = np.array(performance_list)
         best_performance = performance_array[np.argmax(performance_array[:,0], axis=0)]
-        logger.debug('\nBEST PERFORMANCE')
-        logger.debug('Best Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
+        print('Best Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
               % (best_performance[0], best_performance[1], best_performance[2], best_performance[3], best_performance[4], best_performance[5]))
-        
-        logger.debug("############################# SAVED VALUES FOR PLOTS #############################")
-        logger.debug("Finetune_Accuracies= %s", finetune_acc)
-        logger.debug("Finetune_Losses= %s", finetune_loss)
-        logger.debug("Test_Accuracies= %s", test_acc_list)
-        logger.debug("Test_Losses= %s", test_loss_list)
-        logger.debug("##################################################################################")
-
 
     logger.debug("\n################## Training is Done! #########################")
 
