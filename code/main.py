@@ -92,8 +92,8 @@ logger.debug(f'Mode:    {training_mode}')
 logger.debug("=" * 45)
 
 # Load datasets
-sourcedata_path = f"datasets/{sourcedata}"  # './data/Epilepsy'
-targetdata_path = f"datasets/{targetdata}"
+sourcedata_path = f"../datasets/{sourcedata}"  # './data/Epilepsy'
+targetdata_path = f"../datasets/{targetdata}"
 # for self-supervised, the data are augmented here. Only self-supervised learning need augmentation
 subset = False # if subset= true, use a subset for debugging.
 train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset)
