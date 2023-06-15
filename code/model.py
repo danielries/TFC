@@ -5,6 +5,7 @@ class TFC(nn.Module): # Frequency domain encoder
     def __init__(self, configs):
         super(TFC, self).__init__()
 
+        # Defining the convolutional blocks in the time-domain encoder
         self.conv_block1_t = nn.Sequential(
             nn.Conv1d(configs.input_channels, 32, kernel_size=configs.kernel_size,
                       stride=configs.stride, bias=False, padding=(configs.kernel_size//2)),
@@ -28,6 +29,7 @@ class TFC(nn.Module): # Frequency domain encoder
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
         )
 
+        # Defining the projector in time domain
         self.projector_t = nn.Sequential(
             nn.Linear(configs.CNNoutput_channel * configs.final_out_channels, 256),
             nn.BatchNorm1d(256),
@@ -35,6 +37,7 @@ class TFC(nn.Module): # Frequency domain encoder
             nn.Linear(256, 128)
         )
 
+        # Defining the convolutional blocks in frequency domain
         self.conv_block1_f = nn.Sequential(
             nn.Conv1d(configs.input_channels, 32, kernel_size=configs.kernel_size,
                       stride=configs.stride, bias=False, padding=(configs.kernel_size // 2)),
@@ -58,6 +61,7 @@ class TFC(nn.Module): # Frequency domain encoder
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
         )
 
+        # Defining the projector in frequency domain
         self.projector_f = nn.Sequential(
             nn.Linear(configs.CNNoutput_channel * configs.final_out_channels, 256),
             nn.BatchNorm1d(256),

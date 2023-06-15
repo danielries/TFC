@@ -8,7 +8,7 @@ import torch.fft as fft
 
 class Load_Dataset(Dataset):
     # Initialize your data, download, etc.
-    def __init__(self, dataset, config, training_mode, target_dataset_size=64, subset=False):
+    def __init__(self, dataset, config, training_mode, target_dataset_size=64, subset=False, enable_new_augs=False):
         super(Load_Dataset, self).__init__()
         self.training_mode = training_mode
         X_train = dataset["samples"]
@@ -52,8 +52,8 @@ class Load_Dataset(Dataset):
         self.len = X_train.shape[0]
         """Augmentation"""
         if training_mode == "pre_train":  # no need to apply Augmentations in other modes
-            self.aug1 = DataTransform_TD(self.x_data, config)
-            self.aug1_f = DataTransform_FD(self.x_data_f, config) # [7360, 1, 90]
+            self.aug1 = DataTransform_TD(self.x_data, config, enable_new_augs=enable_new_augs)
+            self.aug1_f = DataTransform_FD(self.x_data_f, config, enable_new_augs=enable_new_augs) # [7360, 1, 90]
 
     def __getitem__(self, index):
         if self.training_mode == "pre_train":
@@ -67,9 +67,10 @@ class Load_Dataset(Dataset):
         return self.len
 
 
-def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True):
+def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True, enable_new_augs=False):
 
     train_dataset = torch.load(os.path.join(sourcedata_path, "train.pt"))
+    pretrain_loss_dataset = torch.load(os.path.join(sourcedata_path, "test.pt"))
     finetune_dataset = torch.load(os.path.join(targetdata_path, "train.pt"))
     test_dataset = torch.load(os.path.join(targetdata_path, "test.pt"))
     """ Dataset notes:
@@ -79,14 +80,19 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
     """sleepEDF: finetune_dataset['samples']: [7786, 1, 3000]"""
 
     # subset = True # if true, use a subset for debugging.
-    train_dataset = Load_Dataset(train_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset) # for self-supervised, the data are augmented here
-    finetune_dataset = Load_Dataset(finetune_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset)
+    train_dataset = Load_Dataset(train_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset, enable_new_augs=enable_new_augs) # for self-supervised, the data are augmented here
+    pretrain_loss_dataset = Load_Dataset(pretrain_loss_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset, enable_new_augs=enable_new_augs)
+    finetune_dataset = Load_Dataset(finetune_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, enable_new_augs=enable_new_augs)
     if test_dataset['labels'].shape[0]>10*configs.target_batch_size:
-        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset)
+        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset, enable_new_augs=enable_new_augs)
     else:
-        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset)
+        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, enable_new_augs=enable_new_augs)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=configs.batch_size,
+                                               shuffle=True, drop_last=configs.drop_last,
+                                               num_workers=0)
+
+    loss_loader = torch.utils.data.DataLoader(dataset=pretrain_loss_dataset, batch_size=configs.batch_size,
                                                shuffle=True, drop_last=configs.drop_last,
                                                num_workers=0)
 
@@ -99,4 +105,4 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
                                               shuffle=True, drop_last=False,
                                               num_workers=0)
 
-    return train_loader, valid_loader, test_loader
+    return train_loader, loss_loader, valid_loader, test_loader

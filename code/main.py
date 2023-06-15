@@ -27,7 +27,7 @@ parser.add_argument('--run_description', default='run1', type=str,
 parser.add_argument('--seed', default=0, type=int, help='seed value')
 
 # 1. self_supervised; 2. finetune (itself contains finetune and test)
-parser.add_argument('--training_mode', default='fine_tune_test', type=str,
+parser.add_argument('--training_mode', default='pre_train', type=str,
                     help='pre_train, fine_tune_test')
 
 parser.add_argument('--pretrain_dataset', default='SleepEEG', type=str,
@@ -37,13 +37,25 @@ parser.add_argument('--target_dataset', default='Epilepsy', type=str,
 
 parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
                     help='saving directory')
-parser.add_argument('--device', default='cuda', type=str,
+parser.add_argument('--device', default='cpu', type=str,
                     help='cpu or cuda')
 parser.add_argument('--home_path', default=home_dir, type=str,
                     help='Project home directory')
+
+
+parser.add_argument('--subset', default="True", type=str,
+                    help='True or False')
+parser.add_argument('--info', default="", type=str,
+                    help='Info')
+parser.add_argument('--new_augs', default="False", type=str,
+                    help='Info')
 # args = parser.parse_args()
 args, unknown = parser.parse_known_args()
 
+# New parsers
+subset = args.subset == "True"
+info = args.info
+enable_new_augs = args.new_augs == "True"
 
 device = torch.device(args.device)
 # experiment_description = args.experiment_description
@@ -59,9 +71,15 @@ run_description = args.run_description
 logs_save_dir = args.logs_save_dir
 os.makedirs(logs_save_dir, exist_ok=True)
 
+# New datasets
+if any(data in targetdata for data in ["Depression", "Exoplanets"]):
+    exec(f'from config_files.{targetdata}_Configs import Config as Configs')
+    configs = Configs()
 
-exec(f'from config_files.{sourcedata}_Configs import Config as Configs')
-configs = Configs() # THis is OK???
+# Old datasets
+else:
+    exec(f'from config_files.{sourcedata}_Configs import Config as Configs')
+    configs = Configs()
 
 # # ##### fix random seeds for reproducibility ########
 SEED = args.seed
@@ -84,8 +102,11 @@ src_counter = 0
 log_file_name = os.path.join(experiment_log_dir, f"logs_{datetime.now().strftime('%d_%m_%Y_%H_%M_%S')}.log")
 # 'experiments_logs/Exp1/run1/train_linear_seed_0/logs_14_04_2022_15_13_12.log'
 logger = _logger(log_file_name)
+logger.debug(f"Run description: {run_description}")
+logger.debug(f"We are using {device}")
+logger.debug(f"Info: {info}")
 logger.debug("=" * 45)
-logger.debug(f'Pre-training Dataset: {sourcedata}')
+logger.debug(f'Pre-training Dataset: {sourcedata} (subset={subset})')
 logger.debug(f'Target (fine-tuning) Dataset: {targetdata}')
 logger.debug(f'Method:  {method}')
 logger.debug(f'Mode:    {training_mode}')
@@ -95,8 +116,7 @@ logger.debug("=" * 45)
 sourcedata_path = f"../datasets/{sourcedata}"  # './data/Epilepsy'
 targetdata_path = f"../datasets/{targetdata}"
 # for self-supervised, the data are augmented here. Only self-supervised learning need augmentation
-subset = False # if subset= true, use a subset for debugging.
-train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset)
+train_dl, loss_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset, enable_new_augs=enable_new_augs)
 logger.debug("Data loaded ...")
 
 # Load Model
@@ -130,7 +150,7 @@ if training_mode == "pre_train":  # to do it only once
     copy_Files(os.path.join(logs_save_dir, experiment_description, run_description), sourcedata)
 
 # Trainer
-Trainer(TFC_model,  temporal_contr_model, model_optimizer, temporal_contr_optimizer, train_dl, valid_dl, test_dl, device,
+Trainer(TFC_model,  temporal_contr_model, model_optimizer, temporal_contr_optimizer, train_dl, loss_dl, valid_dl, test_dl, device,
         logger, configs, experiment_log_dir, training_mode, model_F=None, model_F_optimizer = None,
         classifier=classifier, classifier_optimizer=classifier_optimizer)
 

@@ -94,4 +94,3 @@ def copy_Files(destination, data_type):
     copy("dataloader.py", os.path.join(destination_dir, "dataloader.py"))
     copy("model.py", os.path.join(destination_dir, "model.py"))
     copy("loss.py", os.path.join(destination_dir, "loss.py"))
-    #copy("models/TC.py", os.path.join(destination_dir, "TC.py"))
